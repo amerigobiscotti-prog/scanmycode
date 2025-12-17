@@ -1,6 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Json } from '@/integrations/supabase/types';
+
+export interface Ingredient {
+  barcode: string;
+  name?: string;
+  lot: string;
+  expiry_date: string;
+  quantity?: number;
+  scanned_at: string;
+}
 
 export interface Product {
   id: string;
@@ -13,6 +23,7 @@ export interface Product {
   quantity: number;
   unit: string;
   notes: string | null;
+  ingredients: Ingredient[] | null;
   created_at: string;
   updated_at: string;
   suppliers?: {
@@ -32,6 +43,7 @@ export interface ProductInput {
   quantity: number;
   unit: string;
   notes?: string;
+  ingredients?: Ingredient[];
 }
 
 export function useProducts(search?: string) {
@@ -50,7 +62,10 @@ export function useProducts(search?: string) {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data as Product[];
+      return data.map(p => ({
+        ...p,
+        ingredients: (p.ingredients || []) as unknown as Ingredient[],
+      })) as Product[];
     },
   });
 }
@@ -66,7 +81,10 @@ export function useProduct(id: string) {
         .single();
       
       if (error) throw error;
-      return data as Product;
+      return {
+        ...data,
+        ingredients: (data.ingredients || []) as unknown as Ingredient[],
+      } as Product;
     },
     enabled: !!id,
   });
@@ -78,9 +96,13 @@ export function useCreateProduct() {
 
   return useMutation({
     mutationFn: async (product: ProductInput) => {
+      const dbProduct = {
+        ...product,
+        ingredients: (product.ingredients || []) as unknown as Json,
+      };
       const { data, error } = await supabase
         .from('products')
-        .insert(product)
+        .insert(dbProduct)
         .select()
         .single();
       
@@ -103,9 +125,13 @@ export function useUpdateProduct() {
 
   return useMutation({
     mutationFn: async ({ id, ...data }: ProductInput & { id: string }) => {
+      const dbProduct = {
+        ...data,
+        ingredients: (data.ingredients || []) as unknown as Json,
+      };
       const { error } = await supabase
         .from('products')
-        .update(data)
+        .update(dbProduct)
         .eq('id', id);
       
       if (error) throw error;

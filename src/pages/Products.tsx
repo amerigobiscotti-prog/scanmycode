@@ -29,12 +29,16 @@ export default function Products() {
   }, [searchParams, setSearchParams]);
 
   const initialBarcode = searchParams.get('barcode') || undefined;
+  const initialLot = searchParams.get('lot') || undefined;
+  const initialExpiryDate = searchParams.get('expiry_date') || undefined;
 
   const handleCreate = (data: ProductInput) => {
     createProduct.mutate(data, {
       onSuccess: () => {
         setShowNewDialog(false);
         searchParams.delete('barcode');
+        searchParams.delete('lot');
+        searchParams.delete('expiry_date');
         setSearchParams(searchParams);
       },
     });
@@ -157,7 +161,11 @@ export default function Products() {
               <DialogTitle>Nuovo Prodotto</DialogTitle>
             </DialogHeader>
             <ProductForm 
-              defaultValues={{ barcode: initialBarcode }}
+              defaultValues={{ 
+                barcode: initialBarcode,
+                lot: initialLot,
+                expiry_date: initialExpiryDate,
+              }}
               onSubmit={handleCreate}
               isLoading={createProduct.isPending}
               submitLabel="Aggiungi Prodotto"
