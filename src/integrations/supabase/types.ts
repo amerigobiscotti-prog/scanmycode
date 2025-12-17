@@ -42,6 +42,7 @@ export type Database = {
           created_at: string
           expiry_date: string | null
           id: string
+          ingredients: Json | null
           lot: string
           name: string
           notes: string | null
@@ -56,6 +57,7 @@ export type Database = {
           created_at?: string
           expiry_date?: string | null
           id?: string
+          ingredients?: Json | null
           lot: string
           name: string
           notes?: string | null
@@ -70,6 +72,7 @@ export type Database = {
           created_at?: string
           expiry_date?: string | null
           id?: string
+          ingredients?: Json | null
           lot?: string
           name?: string
           notes?: string | null

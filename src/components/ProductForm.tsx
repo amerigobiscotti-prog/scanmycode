@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +12,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { ProductInput } from '@/hooks/useProducts';
+import { ProductInput, Ingredient } from '@/hooks/useProducts';
+import { IngredientsManager } from '@/components/IngredientsManager';
 import { cn } from '@/lib/utils';
 
 const productSchema = z.object({
@@ -33,6 +35,7 @@ interface ProductFormProps {
   onSubmit: (data: ProductInput) => void;
   isLoading?: boolean;
   submitLabel?: string;
+  showIngredients?: boolean;
 }
 
 const units = [
@@ -42,8 +45,9 @@ const units = [
   { value: 'g', label: 'Grammi (g)' },
 ];
 
-export function ProductForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Salva' }: ProductFormProps) {
+export function ProductForm({ defaultValues, onSubmit, isLoading, submitLabel = 'Salva', showIngredients = false }: ProductFormProps) {
   const { data: suppliers } = useSuppliers();
+  const [ingredients, setIngredients] = useState<Ingredient[]>(defaultValues?.ingredients || []);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -71,6 +75,7 @@ export function ProductForm({ defaultValues, onSubmit, isLoading, submitLabel = 
       quantity: data.quantity,
       unit: data.unit,
       notes: data.notes || undefined,
+      ingredients: showIngredients ? ingredients : undefined,
     });
   };
 
@@ -281,6 +286,13 @@ export function ProductForm({ defaultValues, onSubmit, isLoading, submitLabel = 
             </FormItem>
           )}
         />
+
+        {showIngredients && (
+          <IngredientsManager 
+            ingredients={ingredients}
+            onChange={setIngredients}
+          />
+        )}
 
         <Button 
           type="submit" 
