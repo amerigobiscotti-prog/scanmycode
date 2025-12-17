@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Plus, Trash2, Package, Camera } from 'lucide-react';
+import { Plus, Trash2, Package, Camera, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DualScanner, ScannedProduct } from '@/components/scanner/DualScanner';
+import { BarcodeScanner } from '@/components/scanner/BarcodeScanner';
+import { useProductLookup } from '@/hooks/useProductLookup';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import type { Ingredient } from '@/hooks/useProducts';
@@ -18,6 +19,8 @@ interface IngredientsManagerProps {
 export function IngredientsManager({ ingredients, onChange }: IngredientsManagerProps) {
   const [showScanner, setShowScanner] = useState(false);
   const [showManual, setShowManual] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const { lookupProduct } = useProductLookup();
   const [manualIngredient, setManualIngredient] = useState({
     barcode: '',
     name: '',
@@ -25,15 +28,22 @@ export function IngredientsManager({ ingredients, onChange }: IngredientsManager
     expiry_date: '',
   });
 
-  const handleScanComplete = (product: ScannedProduct) => {
+  const handleBarcodeDetected = async (barcode: string) => {
+    setShowScanner(false);
+    setIsLookingUp(true);
+    
+    const productInfo = await lookupProduct(barcode);
+    
     const newIngredient: Ingredient = {
-      barcode: product.barcode,
-      lot: product.lot,
-      expiry_date: product.expiryDate,
+      barcode,
+      name: productInfo?.name || undefined,
+      lot: '',
+      expiry_date: '',
       scanned_at: new Date().toISOString(),
     };
+    
     onChange([...ingredients, newIngredient]);
-    setShowScanner(false);
+    setIsLookingUp(false);
   };
 
   const handleManualAdd = () => {
@@ -70,8 +80,13 @@ export function IngredientsManager({ ingredients, onChange }: IngredientsManager
               variant="outline"
               size="sm"
               onClick={() => setShowScanner(true)}
+              disabled={isLookingUp}
             >
-              <Camera className="h-4 w-4 mr-1" />
+              {isLookingUp ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4 mr-1" />
+              )}
               Scansiona
             </Button>
             <Button
@@ -103,7 +118,7 @@ export function IngredientsManager({ ingredients, onChange }: IngredientsManager
                     {ing.name || `Prodotto ${ing.barcode}`}
                   </p>
                   <div className="flex gap-3 text-xs text-muted-foreground">
-                    <span>Lotto: {ing.lot}</span>
+                    {ing.lot && <span>Lotto: {ing.lot}</span>}
                     {ing.expiry_date && (
                       <span>
                         Scad: {format(new Date(ing.expiry_date), 'd MMM yyyy', { locale: it })}
@@ -132,9 +147,9 @@ export function IngredientsManager({ ingredients, onChange }: IngredientsManager
           <DialogHeader>
             <DialogTitle>Scansiona Ingrediente</DialogTitle>
           </DialogHeader>
-          <DualScanner
-            onComplete={handleScanComplete}
-            onCancel={() => setShowScanner(false)}
+          <BarcodeScanner
+            onBarcodeDetected={handleBarcodeDetected}
+            onClose={() => setShowScanner(false)}
           />
         </DialogContent>
       </Dialog>
