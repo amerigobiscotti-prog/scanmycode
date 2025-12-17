@@ -25,11 +25,27 @@ export function TextOCRScanner({
   const { toast } = useToast();
 
   useEffect(() => {
-    initializeCamera();
-    initializeOCR();
+    let isMounted = true;
+    
+    const init = async () => {
+      await initializeCamera();
+      if (isMounted) {
+        initializeOCR();
+      }
+    };
+    
+    init();
     
     return () => {
-      stopCamera();
+      isMounted = false;
+      // Force stop all tracks
+      if (videoRef.current?.srcObject) {
+        const mediaStream = videoRef.current.srcObject as MediaStream;
+        mediaStream.getTracks().forEach(track => {
+          track.stop();
+        });
+        videoRef.current.srcObject = null;
+      }
     };
   }, []);
 
@@ -61,42 +77,40 @@ export function TextOCRScanner({
 
   const initializeOCR = async () => {
     try {
-      const { pipeline } = await import('@huggingface/transformers');
+      const { pipeline, env } = await import('@huggingface/transformers');
+      
+      // Configure for browser usage
+      env.allowLocalModels = false;
+      env.useBrowserCache = true;
       
       console.log('Loading OCR model...');
+      
+      // Try CPU first as it's more reliable on mobile
       workerRef.current = await pipeline(
         'image-to-text',
-        'Xenova/trocr-small-printed',
-        { device: 'webgpu' }
+        'Xenova/trocr-small-printed'
       );
       
       setOcrReady(true);
       console.log('OCR ready');
     } catch (error) {
       console.error('OCR initialization error:', error);
-      // Fallback: try without WebGPU
-      try {
-        const { pipeline } = await import('@huggingface/transformers');
-        workerRef.current = await pipeline(
-          'image-to-text',
-          'Xenova/trocr-small-printed'
-        );
-        setOcrReady(true);
-        console.log('OCR ready (CPU fallback)');
-      } catch (fallbackError) {
-        console.error('OCR fallback error:', fallbackError);
-        toast({
-          title: 'OCR non disponibile',
-          description: 'Inserisci i dati manualmente.',
-          variant: 'destructive',
-        });
-      }
+      toast({
+        title: 'OCR non disponibile',
+        description: 'Il modello OCR non è disponibile. Inserisci i dati manualmente.',
+        variant: 'destructive',
+      });
     }
   };
 
   const stopCamera = () => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
+    }
+    if (videoRef.current?.srcObject) {
+      const mediaStream = videoRef.current.srcObject as MediaStream;
+      mediaStream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
     }
     setStream(null);
   };

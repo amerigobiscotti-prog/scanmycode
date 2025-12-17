@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,29 @@ export function DualScanner({ onComplete, onCancel }: DualScannerProps) {
   const [rawOcrText, setRawOcrText] = useState('');
   const [manualBarcode, setManualBarcode] = useState(false);
   const [manualOcr, setManualOcr] = useState(false);
+  const [isActive, setIsActive] = useState(true);
+
+  // Cleanup all camera streams when component unmounts
+  useEffect(() => {
+    return () => {
+      setIsActive(false);
+      // Stop all active media streams
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          stream.getTracks().forEach(track => track.stop());
+        })
+        .catch(() => {});
+      
+      // Stop any existing video elements
+      document.querySelectorAll('video').forEach(video => {
+        if (video.srcObject) {
+          const mediaStream = video.srcObject as MediaStream;
+          mediaStream.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+        }
+      });
+    };
+  }, []);
 
   const handleBarcodeDetected = (code: string) => {
     setBarcode(code);

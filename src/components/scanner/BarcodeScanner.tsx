@@ -16,8 +16,18 @@ export function BarcodeScanner({ onBarcodeDetected, onClose }: BarcodeScannerPro
   const { toast } = useToast();
 
   useEffect(() => {
-    startScanning();
+    let isMounted = true;
+    
+    const init = async () => {
+      if (isMounted) {
+        await startScanning();
+      }
+    };
+    
+    init();
+    
     return () => {
+      isMounted = false;
       stopScanning();
     };
   }, []);
@@ -69,10 +79,14 @@ export function BarcodeScanner({ onBarcodeDetected, onClose }: BarcodeScannerPro
   const stopScanning = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.stop();
+        const state = scannerRef.current.getState();
+        if (state === 2) { // 2 = SCANNING
+          await scannerRef.current.stop();
+        }
         scannerRef.current.clear();
       } catch (error) {
-        console.error('Error stopping scanner:', error);
+        // Silently handle errors during cleanup
+        console.debug('Scanner cleanup:', error);
       }
       scannerRef.current = null;
     }
