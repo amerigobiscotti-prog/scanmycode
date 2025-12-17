@@ -1,25 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, Keyboard, Package } from 'lucide-react';
+import { Camera, Keyboard, Package, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Layout } from '@/components/Layout';
-import { DualScanner, ScannedProduct } from '@/components/scanner/DualScanner';
+import { BarcodeScanner } from '@/components/scanner/BarcodeScanner';
+import { useProductLookup } from '@/hooks/useProductLookup';
 
 export default function Scanner() {
-  const [mode, setMode] = useState<'menu' | 'dual' | 'quick'>('menu');
+  const [mode, setMode] = useState<'menu' | 'scan'>('menu');
+  const [isLookingUp, setIsLookingUp] = useState(false);
   const navigate = useNavigate();
+  const { lookupProduct } = useProductLookup();
 
-  const handleDualScanComplete = (product: ScannedProduct) => {
-    const params = new URLSearchParams({
-      barcode: product.barcode,
-      lot: product.lot,
-      expiry_date: product.expiryDate,
-    });
+  const handleBarcodeDetected = async (barcode: string) => {
+    setIsLookingUp(true);
+    const productInfo = await lookupProduct(barcode);
+    setIsLookingUp(false);
+    
+    const params = new URLSearchParams({ barcode });
+    
+    if (productInfo) {
+      if (productInfo.name) params.set('name', productInfo.name);
+      if (productInfo.ingredients) params.set('ingredients_text', productInfo.ingredients);
+      if (productInfo.allergens?.length) params.set('allergens', productInfo.allergens.join(', '));
+      if (productInfo.brand) params.set('brand', productInfo.brand);
+    }
+    
     navigate(`/products/new?${params.toString()}`);
   };
 
-  const handleQuickScan = () => {
+  const handleManualEntry = () => {
     navigate('/products/new');
   };
 
@@ -38,26 +49,26 @@ export default function Scanner() {
                   </div>
                   <h2 className="text-lg font-semibold mb-2">Scansione Prodotto</h2>
                   <p className="text-muted-foreground text-sm">
-                    Scegli come inserire il prodotto
+                    Scansiona il codice a barre per ottenere automaticamente le informazioni del prodotto
                   </p>
                 </div>
 
                 <div className="space-y-3">
                   <Button 
-                    onClick={() => setMode('dual')} 
+                    onClick={() => setMode('scan')} 
                     className="w-full gradient-primary h-auto py-4"
                   >
                     <div className="flex items-center gap-3">
                       <Camera className="h-6 w-6" />
                       <div className="text-left">
-                        <div className="font-semibold">Doppia Scansione</div>
-                        <div className="text-xs opacity-80">Barcode + OCR (lotto e scadenza)</div>
+                        <div className="font-semibold">Scansiona Codice</div>
+                        <div className="text-xs opacity-80">Cerca automaticamente nome e ingredienti</div>
                       </div>
                     </div>
                   </Button>
                   
                   <Button 
-                    onClick={handleQuickScan}
+                    onClick={handleManualEntry}
                     variant="outline"
                     className="w-full h-auto py-4"
                   >
@@ -84,11 +95,20 @@ export default function Scanner() {
           </div>
         )}
 
-        {mode === 'dual' && (
-          <DualScanner
-            onComplete={handleDualScanComplete}
-            onCancel={() => setMode('menu')}
+        {mode === 'scan' && !isLookingUp && (
+          <BarcodeScanner
+            onBarcodeDetected={handleBarcodeDetected}
+            onClose={() => setMode('menu')}
           />
+        )}
+
+        {isLookingUp && (
+          <Card>
+            <CardContent className="p-8 flex flex-col items-center justify-center gap-4">
+              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              <p className="text-muted-foreground">Ricerca informazioni prodotto...</p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </Layout>
